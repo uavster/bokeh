@@ -5,10 +5,11 @@
 #include "debug.h"
 #include "except.hpp"
 #include "debug.h"
+#include "image.hpp"
 
 #define kDisplayWidth	320
 #define kDisplayHeight 200
-#define kDisplayBpp	32
+#define kDisplayBpp	kImageBpp32
 
 #define kMaxKernelSize 17
 #define kFilterChangeSinusoidFactor 5.0f
@@ -16,55 +17,37 @@
 class BokehApp : public Application {
 public:
   virtual void Init() {
-    background = NULL;
-    foreground_image = NULL;
-    foreground_alpha = NULL;
-    filtered_foreground_alpha = NULL;
-    filtered_foreground_image = NULL;
-    filtered_background = NULL;
-    backbuffer = NULL;
+    background = Image("back.pcx", kImageBpp32);
+printf("1\n");
+    foreground_image = Image("front.pcx", kImageBpp32);
+printf("2\n");
+    foreground_alpha = Image("front_a.pcx", kImageBpp8);
+printf("3\n");
+    ExpandAlphaMaskRange(foreground_alpha.sli());
+printf("4\n");
+    filtered_foreground_alpha = Image(foreground_alpha.width(), foreground_alpha.height(), foreground_alpha.bpp());
+printf("5\n");
+    SetPalette(filtered_foreground_alpha.sli(), foreground_alpha.sli()->SLIPalette);
+printf("6\n");
+    Blit(filtered_foreground_alpha.sli(), foreground_alpha.sli());
+printf("7\n");
 
-    background = LoadGFX("back.pcx", 32);
-    if (background == NULL) {
-      throw Exception("Can't load back.pcx");
-    }
+    filtered_foreground_image = Image(foreground_image.width(), foreground_image.height(), foreground_image.bpp());
+printf("8\n");
+    SetBlitType(filtered_foreground_image.sli(), SLIBlitAlphaMap);
+printf("9\n");
+    SetAlpha(filtered_foreground_image.sli(), GetCurrentFramePtr(filtered_foreground_alpha.sli()));
+printf("10\n");
 
-    foreground_image = LoadGFX("front.pcx", 32);
-    if (foreground_image == NULL) {
-      throw Exception("Can't load front.pcx");
-    }
+    filtered_background = Image(background.width(), background.height(), background.bpp());
+printf("11\n");
 
-    foreground_alpha = LoadGFX("front_a.pcx", 8);
-    if (foreground_alpha == NULL) {
-      throw Exception("Can't load front_a.pcx");
-    }
-    ExpandAlphaMaskRange(foreground_alpha);
-
-    filtered_foreground_alpha = CreateSLI(foreground_alpha->SLIXSize, foreground_alpha->SLIYSize, foreground_alpha->SLIColorBits * 8, /*nframes=*/1);
-    if (filtered_foreground_alpha == NULL) {
-      throw Exception("Can't create filtered_foreground_alpha");
-    }
-    SetPalette(filtered_foreground_alpha, foreground_alpha->SLIPalette);
-    Blit(filtered_foreground_alpha, foreground_alpha);
-
-    filtered_foreground_image = CreateSLI(foreground_image->SLIXSize, foreground_image->SLIYSize, foreground_image->SLIColorBits * 8, /*nframes=*/1);
-    if (filtered_foreground_image == NULL) {
-      throw Exception("Can't create filtered_foreground_image");
-    }
-    SetBlitType(filtered_foreground_image, SLIBlitAlphaMap);
-    SetAlpha(filtered_foreground_image, GetCurrentFramePtr(filtered_foreground_alpha));
-
-    filtered_background = CreateSLI(background->SLIXSize, background->SLIYSize, background->SLIColorBits * 8, /*nframes=*/1);
-    if (filtered_background == NULL) {
-      throw Exception("Can't create filtered_background");
-    }
-
-    backbuffer = CreateSLI(background->SLIXSize, background->SLIYSize, kDisplayBpp, /*nframes=*/1);
-    if (backbuffer == NULL) {
-      throw Exception("Can't create backbuffer");
-    }
-    SetClip(backbuffer, kMaxKernelSize / 2, kMaxKernelSize / 2, backbuffer->SLIXSize - kMaxKernelSize / 2, backbuffer->SLIYSize - kMaxKernelSize / 2);
-    SetPos(backbuffer, 0, (kDisplayHeight - background->SLIYSize) / 2);
+    backbuffer = Image(background.width(), background.height(), kDisplayBpp);
+printf("12\n");
+    SetClip(backbuffer.sli(), kMaxKernelSize / 2, kMaxKernelSize / 2, backbuffer.width() - kMaxKernelSize / 2, backbuffer.height() - kMaxKernelSize / 2);
+printf("13\n");
+    SetPos(backbuffer.sli(), 0, (kDisplayHeight - background.height()) / 2);
+printf("14\n");
 
     if (CreateVideoSLI(kDisplayWidth, kDisplayHeight, kDisplayBpp)) {
       throw Exception("Can't create video SLI");
@@ -93,14 +76,14 @@ public:
     if ((bg_kernel_size_int & 1) == 0) {
       --bg_kernel_size_int;
     }
-    BoxFilter(background, bg_kernel_size_int, bg_kernel_size_int, filtered_background);
-    BoxFilter(foreground_image, fg_kernel_size_int, fg_kernel_size_int, filtered_foreground_image);
-    BoxFilter(foreground_alpha, fg_kernel_size_int, fg_kernel_size_int, filtered_foreground_alpha);
-    Blit(backbuffer, filtered_background);
+    BoxFilter(background.sli(), bg_kernel_size_int, bg_kernel_size_int, filtered_background.sli());
+    BoxFilter(foreground_image.sli(), fg_kernel_size_int, fg_kernel_size_int, filtered_foreground_image.sli());
+    BoxFilter(foreground_alpha.sli(), fg_kernel_size_int, fg_kernel_size_int, filtered_foreground_alpha.sli());
+    Blit(backbuffer.sli(), filtered_background.sli());
     float amplitude_modulator = 0.5f * (sin(2.0f * 3.14159f * 0.1f * t) + 1);
-    SetPos(filtered_foreground_image, amplitude_modulator * 0.5f * (cos(2.0f * 3.14159f * 4.0f * t) + 1), amplitude_modulator * 0.5f * (cos(2.0f * 3.14159f * 4.0f * t) + 1));
-    Blit(backbuffer, filtered_foreground_image);
-    Blit(GetVideoSLI(), backbuffer);
+    SetPos(filtered_foreground_image.sli(), amplitude_modulator * 0.5f * (cos(2.0f * 3.14159f * 4.0f * t) + 1), amplitude_modulator * 0.5f * (cos(2.0f * 3.14159f * 4.0f * t) + 1));
+    Blit(backbuffer.sli(), filtered_foreground_image.sli());
+    Blit(GetVideoSLI(), backbuffer.sli());
 
     ShowVideoSLI();
 
@@ -112,40 +95,17 @@ public:
   
   virtual void CleanUp() {
     StopFrameRate();
-
-    if (background != NULL) {
-      DestroySLI(background);
-    }
-    if (foreground_image != NULL) {
-      DestroySLI(foreground_image);
-    }
-    if (foreground_alpha != NULL) {
-      DestroySLI(foreground_alpha);
-    }
-    if (filtered_foreground_image != NULL) {
-      DestroySLI(filtered_foreground_image);
-    }
-    if (filtered_foreground_alpha != NULL) {
-      DestroySLI(filtered_foreground_alpha);
-    }
-    if (filtered_background != NULL) {
-      DestroySLI(filtered_background);
-    }
-    if (backbuffer != NULL) {
-      DestroySLI(backbuffer);
-    }
-
     ShowFrameRateResult();
   }
 
 private:
-  SLI *background;
-  SLI *foreground_image;
-  SLI *foreground_alpha;
-  SLI *filtered_foreground_alpha;
-  SLI *filtered_foreground_image;
-  SLI *filtered_background;
-  SLI *backbuffer;
+  Image background;
+  Image foreground_image;
+  Image foreground_alpha;
+  Image filtered_foreground_alpha;
+  Image filtered_foreground_image;
+  Image filtered_background;
+  Image backbuffer;
   float t;
   float t_inc;
 };
