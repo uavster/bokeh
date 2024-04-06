@@ -18,36 +18,22 @@ class BokehApp : public Application {
 public:
   virtual void Init() {
     background = Image("back.pcx", kImageBpp32);
-printf("1\n");
     foreground_image = Image("front.pcx", kImageBpp32);
-printf("2\n");
     foreground_alpha = Image("front_a.pcx", kImageBpp8);
-printf("3\n");
     ExpandAlphaMaskRange(foreground_alpha.sli());
-printf("4\n");
     filtered_foreground_alpha = Image(foreground_alpha.width(), foreground_alpha.height(), foreground_alpha.bpp());
-printf("5\n");
     SetPalette(filtered_foreground_alpha.sli(), foreground_alpha.sli()->SLIPalette);
-printf("6\n");
     Blit(filtered_foreground_alpha.sli(), foreground_alpha.sli());
-printf("7\n");
 
     filtered_foreground_image = Image(foreground_image.width(), foreground_image.height(), foreground_image.bpp());
-printf("8\n");
     SetBlitType(filtered_foreground_image.sli(), SLIBlitAlphaMap);
-printf("9\n");
     SetAlpha(filtered_foreground_image.sli(), GetCurrentFramePtr(filtered_foreground_alpha.sli()));
-printf("10\n");
 
     filtered_background = Image(background.width(), background.height(), background.bpp());
-printf("11\n");
 
     backbuffer = Image(background.width(), background.height(), kDisplayBpp);
-printf("12\n");
     SetClip(backbuffer.sli(), kMaxKernelSize / 2, kMaxKernelSize / 2, backbuffer.width() - kMaxKernelSize / 2, backbuffer.height() - kMaxKernelSize / 2);
-printf("13\n");
     SetPos(backbuffer.sli(), 0, (kDisplayHeight - background.height()) / 2);
-printf("14\n");
 
     if (CreateVideoSLI(kDisplayWidth, kDisplayHeight, kDisplayBpp)) {
       throw Exception("Can't create video SLI");
