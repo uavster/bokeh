@@ -17,23 +17,26 @@
 class BokehApp : public Application {
 public:
   virtual void Init() {
-    background = Image("back.pcx", kImageBpp32);
+    background = Image("back.pcx", kImageBpp32);    
+    
     foreground_image = Image("front.pcx", kImageBpp32);
-    foreground_alpha = Image("front_a.pcx", kImageBpp8);
-    ExpandAlphaMaskRange(foreground_alpha.sli());
+
+    foreground_alpha = Image("front_a.pcx", kImageBpp8);        
+    ExpandAlphaMaskRange(foreground_alpha);
+
     filtered_foreground_alpha = Image(foreground_alpha.width(), foreground_alpha.height(), foreground_alpha.bpp());
-    SetPalette(filtered_foreground_alpha.sli(), foreground_alpha.sli()->SLIPalette);
-    Blit(filtered_foreground_alpha.sli(), foreground_alpha.sli());
+    filtered_foreground_alpha.CopyPaletteFrom(foreground_alpha);
+    Blit(filtered_foreground_alpha, foreground_alpha);
 
     filtered_foreground_image = Image(foreground_image.width(), foreground_image.height(), foreground_image.bpp());
-    SetBlitType(filtered_foreground_image.sli(), SLIBlitAlphaMap);
-    SetAlpha(filtered_foreground_image.sli(), GetCurrentFramePtr(filtered_foreground_alpha.sli()));
+    SetBlitType(filtered_foreground_image, SLIBlitAlphaMap);
+    SetAlpha(filtered_foreground_image, GetCurrentFramePtr(filtered_foreground_alpha));
 
     filtered_background = Image(background.width(), background.height(), background.bpp());
 
     backbuffer = Image(background.width(), background.height(), kDisplayBpp);
-    SetClip(backbuffer.sli(), kMaxKernelSize / 2, kMaxKernelSize / 2, backbuffer.width() - kMaxKernelSize / 2, backbuffer.height() - kMaxKernelSize / 2);
-    SetPos(backbuffer.sli(), 0, (kDisplayHeight - background.height()) / 2);
+    SetClip(backbuffer, kMaxKernelSize / 2, kMaxKernelSize / 2, backbuffer.width() - kMaxKernelSize / 2, backbuffer.height() - kMaxKernelSize / 2);
+    SetPos(backbuffer, 0, (kDisplayHeight - background.height()) / 2);
 
     if (CreateVideoSLI(kDisplayWidth, kDisplayHeight, kDisplayBpp)) {
       throw Exception("Can't create video SLI");
@@ -62,14 +65,14 @@ public:
     if ((bg_kernel_size_int & 1) == 0) {
       --bg_kernel_size_int;
     }
-    BoxFilter(background.sli(), bg_kernel_size_int, bg_kernel_size_int, filtered_background.sli());
-    BoxFilter(foreground_image.sli(), fg_kernel_size_int, fg_kernel_size_int, filtered_foreground_image.sli());
-    BoxFilter(foreground_alpha.sli(), fg_kernel_size_int, fg_kernel_size_int, filtered_foreground_alpha.sli());
-    Blit(backbuffer.sli(), filtered_background.sli());
+    BoxFilter(background, bg_kernel_size_int, bg_kernel_size_int, filtered_background);
+    BoxFilter(foreground_image, fg_kernel_size_int, fg_kernel_size_int, filtered_foreground_image);
+    BoxFilter(foreground_alpha, fg_kernel_size_int, fg_kernel_size_int, filtered_foreground_alpha);
+    Blit(backbuffer, filtered_background);
     float amplitude_modulator = 0.5f * (sin(2.0f * 3.14159f * 0.1f * t) + 1);
-    SetPos(filtered_foreground_image.sli(), amplitude_modulator * 0.5f * (cos(2.0f * 3.14159f * 4.0f * t) + 1), amplitude_modulator * 0.5f * (cos(2.0f * 3.14159f * 4.0f * t) + 1));
-    Blit(backbuffer.sli(), filtered_foreground_image.sli());
-    Blit(GetVideoSLI(), backbuffer.sli());
+    SetPos(filtered_foreground_image, amplitude_modulator * 0.5f * (cos(2.0f * 3.14159f * 4.0f * t) + 1), amplitude_modulator * 0.5f * (cos(2.0f * 3.14159f * 4.0f * t) + 1));
+    Blit(backbuffer, filtered_foreground_image);
+    Blit(GetVideoSLI(), backbuffer);
 
     ShowVideoSLI();
 
