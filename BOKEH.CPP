@@ -4,7 +4,6 @@
 #include "app.hpp"
 #include "debug.h"
 #include "except.hpp"
-#include "debug.h"
 #include "image.hpp"
 
 #define kDisplayWidth	320
@@ -14,9 +13,12 @@
 #define kMaxKernelSize 17
 #define kFilterChangeSinusoidFactor 5.0f
 
-class BokehApp : public Application {
+class BokehApp : public VideoApplication {
 public:
-  virtual void Init() {
+  BokehApp() : VideoApplication() {}
+  BokehApp(const VideoAppOptions &options) : VideoApplication(options) {}
+
+  virtual void InitBeforeVideo() {
     background = Image("back.pcx", kImageBpp32);    
     
     foreground_image = Image("front.pcx", kImageBpp32);
@@ -37,17 +39,9 @@ public:
     backbuffer = Image(background.width(), background.height(), kDisplayBpp);
     SetClip(backbuffer, kMaxKernelSize / 2, kMaxKernelSize / 2, backbuffer.width() - kMaxKernelSize / 2, backbuffer.height() - kMaxKernelSize / 2);
     SetPos(backbuffer, 0, (kDisplayHeight - background.height()) / 2);
-
-    if (CreateVideoSLI(kDisplayWidth, kDisplayHeight, kDisplayBpp)) {
-      throw Exception("Can't create video SLI");
-    }
-
-    t = 0;
-    t_inc = 0.01;
-    StartFrameRate();
   }
 
-  virtual void Update() {
+  virtual void UpdateFrame(float t) {
     float sinusoid = kFilterChangeSinusoidFactor * cos(2.0f * 3.14159f * 0.1f * t);
     if (sinusoid > 1.0f) {
       sinusoid = 1.0f;
@@ -73,18 +67,9 @@ public:
     SetPos(filtered_foreground_image, amplitude_modulator * 0.5f * (cos(2.0f * 3.14159f * 4.0f * t) + 1), amplitude_modulator * 0.5f * (cos(2.0f * 3.14159f * 4.0f * t) + 1));
     Blit(backbuffer, filtered_foreground_image);
     Blit(GetVideoSLI(), backbuffer);
-
-    ShowVideoSLI();
-
-    GetElapsedTime();
-    IncFloat(&t, &t_inc);
-
-    IncFrameCounter();
   }
   
-  virtual void CleanUp() {
-    StopFrameRate();
-    ShowFrameRateResult();
+  virtual void CleanUpAfterVideo() {
   }
 
 private:
@@ -95,11 +80,12 @@ private:
   Image filtered_foreground_image;
   Image filtered_background;
   Image backbuffer;
-  float t;
-  float t_inc;
 };
 
 int main() {
-  BokehApp app;
+  VideoAppOptions options;
+  options.do_print_fps_at_end(true);
+  options.SetVideoMode(kDisplayWidth, kDisplayHeight, kDisplayBpp);
+  BokehApp app(options);
   return app.Run();
 }
